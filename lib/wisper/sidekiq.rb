@@ -6,7 +6,12 @@ require 'wisper/sidekiq/version'
 module Wisper
   class SidekiqBroadcaster
     def broadcast(subscriber, publisher, event, args)
-      subscriber.delay.public_send(event, *args)
+      if subscriber.method_defined?(:perform)
+        subscriber.perform_async(event, args)
+      else
+        method = subscriber.respond_to?(:sidekiq_delay) ? :sidekiq_delay : :delay
+        subscriber.send(method).public_send(event, *args)
+      end
     end
 
     def self.register
